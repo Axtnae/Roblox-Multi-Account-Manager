@@ -1,4 +1,5 @@
 @echo off
+REM Release 0.2
 setlocal enabledelayedexpansion
 
 echo Requesting administrator privileges...

@@ -1,4 +1,4 @@
-# Release 0.3
+# Release 0.2
 # Roblox Multi-Account Manager - Enhanced Edition
 
 A secure Python application for managing and launching multiple Roblox accounts with full instance isolation. Built with Tkinter for the GUI and Selenium for browser automation.
@@ -16,19 +16,8 @@ A secure Python application for managing and launching multiple Roblox accounts 
 
 - Windows 10 or 11
 - Python 3.8 or higher
-- A modern web browser (Chrome, Edge, or Firefox)
+- Firefox browser (for Selenium automation)
 - Roblox installed on your system
-
-## Browser Support
-
-This application automatically detects and uses your system's default browser for authentication:
-- **Google Chrome** (recommended for best performance)
-- **Microsoft Edge** (Chromium-based)
-- **Mozilla Firefox**
-- **Brave Browser** (Chromium-based)
-- **Opera Browser** (Chromium-based)
-
-The application will automatically fall back to other supported browsers if your default browser is not available.
 
 ## Installation
 
@@ -50,7 +39,7 @@ The application will automatically fall back to other supported browsers if your
 ## Usage
 
 1. Obtain your .ROBLOSECURITY cookie:
-   - Log into Roblox in any supported browser (Chrome, Edge, Firefox, Brave, or Opera).
+   - Log into Roblox in Firefox or Chrome.
    - Open Developer Tools (F12).
    - Go to the Application or Storage tab.
    - Find Cookies for roblox.com and copy the .ROBLOSECURITY value.

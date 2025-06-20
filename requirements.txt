@@ -1,10 +1,11 @@
+# Release: 0.2
 # Requirements for Enhanced Roblox Multi-Account Manager with Symlink Isolation
 # Phase 3: Full LocalStorage isolation using symbolic links
 
 # Core Dependencies
 selenium==4.17.2                # Browser automation for Roblox authentication
 cryptography>=41.0.0,<46.0.0   # Fernet encryption for secure account storage
-webdriver-manager==4.0.1        # Automatic Firefox driver management
+webdriver-manager==4.0.1        # Automatic browser driver management (Chrome, Edge, Firefox)
 psutil>=5.9.0                   # Process management for instance tracking
 
 # Built-in Python modules (no installation required)

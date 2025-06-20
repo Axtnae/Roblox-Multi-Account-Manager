@@ -1,108 +1,68 @@
-# Python Virtual Environment
+# Python environments and cache
 venv/
 env/
-ENV/
-
-# Python Cache
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
 
-# Distribution / packaging
-.Python
+# Distribution
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# Sensitive Data (DO NOT COMMIT)
+# Sensitive Data
 .data/
 accounts.json
 security.salt
 *.log
 *.db
 
-# IDE
+# IDE & OS
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
-
-# OS Files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Chrome Driver Downloads
+# Browser drivers
 chromedriver.exe
 chromedriver/
+geckodriver.exe
+msedgedriver.exe
 
-# Screenshots (if any)
-screenshots/
-*.png
-*.jpg
-*.jpeg
-
-# Temporary files
-temp/
-tmp/
-*.tmp
-
-# Move all Python source files to src/
-# - config.py
-# - main.py
-# - roblox_launcher.py
-# - security_manager.py
-
-# Remove from root after moving.
-
-legacy_backups/
-
-# Roblox Instance Data and Sensitive Files
-roblox_instances/*/LocalStorage/RobloxCookies.dat
-roblox_instances/*/LocalStorage/*.json
+# Roblox instance data (keep structure, ignore content)
+roblox_instances/*/LocalStorage/
 roblox_instances/*/logs/
 roblox_instances/*/cache/
 roblox_instances/*/content/
 roblox_instances/*/versions/
 
-# Output files from remove_comments.py
-src/*.nocomments
-
-# Backup and legacy files
-legacy_backups/
-main_old*.py
-
-# Automatically generated files
+# Development artifacts
 *.bak
 *.backup
-*.orig
 
-# User data and links
+# Temporary development files
+*temp*
+*tmp*
+quick_*
+prepare_*
+*_draft*
+*_test*
+*_backup*
+*.draft
+*.test
+
+# Release preparation files
+release_notes*
+changelog_*
+version_*
+*_release*
+
+# Development scripts
+debug_*
+fix_*
+patch_*
+
+# Developer-only files (not for end users)
+update.bat
 src/saved_links.json
-
-# General sensitive or auto-generated files
-*.key
-*.pem
-*.crt
-*.pfx
-*.env
+verify_refactor.py

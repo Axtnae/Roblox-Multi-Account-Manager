@@ -5,7 +5,7 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-class SecurityManager:
+class EncryptionManager:
     """Handles encryption/decryption of account data using PBKDF2 and Fernet."""
     def __init__(self):
         self.data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".data")

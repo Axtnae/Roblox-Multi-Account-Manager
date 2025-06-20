@@ -1,28 +1,35 @@
 @echo off
 setlocal enabledelayedexpansion
+:: Release 0.2
 
 :: Get the directory where this batch file is located
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
-echo ================================================================
-echo Roblox Multi-Account Manager - Interactive Setup
-echo ================================================================
-echo Current directory: %CD%
-echo.
+set "PYTHON_CMD=python"
 
-:: Check if Python is installed
-python --version >nul 2>&1
+:: Try to detect Python in PATH
+%PYTHON_CMD% --version >nul 2>&1
 if %errorlevel% neq 0 (
+    echo Python not found in PATH. Attempting to locate Python in common install locations...
+    set "PYTHON_EXE="
+    for /f "delims=" %%P in ('dir /b /s "%LocalAppData%\Programs\Python\python3*.exe" 2^>nul') do (
+        set "PYTHON_EXE=%%P"
+        goto :FOUND_PYTHON
+    )
     echo ERROR: Python is not installed or not in PATH.
     echo Please install Python 3.7+ from https://python.org
-    echo Make sure to check "Add Python to PATH" during installation.
+    echo The download page will open now.
+    start https://www.python.org/downloads/
     pause
     exit /b 1
+:FOUND_PYTHON
+    set "PYTHON_CMD=!PYTHON_EXE!"
+    set "PATH=%PATH%;!PYTHON_EXE:~0,-10!"
 )
 
-echo Python detected. Checking version...
-python -c "import sys; exit(0 if sys.version_info >= (3, 7) else 1)"
+:: Check Python version
+%PYTHON_CMD% -c "import sys; exit(0 if sys.version_info >= (3, 7) else 1)"
 if %errorlevel% neq 0 (
     echo ERROR: Python 3.7 or higher is required.
     echo Please upgrade your Python installation.
@@ -50,7 +57,7 @@ if exist "venv" (
 
 if /i "!CREATEVENV!"=="y" (
     echo Creating Python virtual environment...
-    python -m venv venv
+    %PYTHON_CMD% -m venv venv
     if %errorlevel% neq 0 (
         echo ERROR: Failed to create virtual environment.
         echo Make sure you have the 'venv' module installed.
@@ -152,13 +159,11 @@ echo ================================================================
 echo.
 echo Virtual environment location: %CD%\venv
 echo.
-echo To run the application:
-echo   1. Run: start_app.bat (recommended)
-echo   2. Or manually: venv\Scripts\activate.bat && python main.py
+echo Setup complete! The application is ready to use.
 echo.
-set /p RUNAPP="Do you want to start the application now? (y/n): "
-if /i "%RUNAPP%"=="y" (
-    python main.py
-    pause
-)
+echo To launch the application:
+echo   Run: Start.bat
+echo.
+echo Press any key to exit setup...
+pause >nul
 endlocal

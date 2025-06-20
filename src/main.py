@@ -6,15 +6,23 @@ import sys
 import os
 import json
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.edge.options import Options as EdgeOptions
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from security_manager import SecurityManager
-from isolated_launcher import IsolatedRobloxLauncher
-class AccountManager:
+from encryption import EncryptionManager
+from launcher import RobloxLauncher
+# Legacy compatibility - improved launcher is now unified
+try:
+    from launcher import ImprovedRobloxLauncher
+    IMPROVED_LAUNCHER_AVAILABLE = True
+except ImportError:
+    IMPROVED_LAUNCHER_AVAILABLE = False
+class AccountManager:    
     def __init__(self):
         self.root = tk.Tk()
-        self.security_manager = SecurityManager()
-        self.roblox_launcher = IsolatedRobloxLauncher(callback=self.update_status)
+        self.security_manager = EncryptionManager()
+        self.roblox_launcher = RobloxLauncher(callback=self.update_status)
         self.accounts_data = {}
         self.saved_links = {}  # Store loaded links
         self.master_password = None
@@ -22,24 +30,76 @@ class AccountManager:
         self._save_delay = 1.0  # Delay saves to batch them
         self.setup_ui()
         self.authenticate()
+        
+    def launch_with_improved_method(self):
+        """
+        Use the improved launcher that fixes all 4 issues:
+        1. False success reports
+        2. Process detection issues  
+        3. Isolation failures after 2-3 accounts
+        4. Firefox/Protocol conflicts
+        """
+        if not IMPROVED_LAUNCHER_AVAILABLE:
+            messagebox.showerror("Error", "Improved launcher not available. Please check improved_launcher.py")
+            return
+            
+        selected_items = self.accounts_tree.selection()
+        selected_accounts = []
+        for item in selected_items:
+            account_name = self.accounts_tree.item(item, 'text')
+            if account_name in self.accounts_data:
+                cookie = self.accounts_data[account_name]
+                selected_accounts.append((account_name, cookie))
+                
+        if not selected_accounts:
+            messagebox.showinfo("No Selection", "Please select accounts to launch.")
+            return
+            
+        server_link = self.server_entry.get().strip()
+        if not server_link or server_link == "Enter game/private server link...":
+            messagebox.showwarning("Missing Link", "Please enter a valid server link.")
+            return
+              # Initialize improved launcher
+        improved_launcher = RobloxLauncher(callback=self.update_status)
+        
+        # Disable launch button
+        self.launch_button.config(state='disabled')
+        
+        def launch_wrapper():
+            try:
+                self.update_status("🚀 Starting IMPROVED launch method with enhanced success detection...")
+                self.update_status("✨ This fixes: False success reports, Process detection, Isolation failures, Firefox conflicts")
+                  # Use improved launcher
+                improved_launcher.launch_multiple_accounts_improved(selected_accounts, server_link)
+                
+            except Exception as e:
+                self.update_status(f"Improved launch error: {e}")
+            finally:
+                self.launch_button.config(state='normal')
+                
+        threading.Thread(target=launch_wrapper, daemon=True).start()
+
     def setup_ui(self):
         """Setup the main UI interface."""
-        self.root.title("Roblox Multi-Account Manager - Symlink Isolation")
-        self.root.geometry("800x700")  # Increased size to accommodate all elements
-        self.root.minsize(750, 650)    # Set minimum size to prevent elements from being cut off
+        self.root.title("Roblox Multi-Account Manager")
+        self.root.geometry("750x650")  # More compact size
+        self.root.minsize(700, 600)    # Smaller minimum size
         self.root.resizable(True, True)
         self.root.configure(bg='#f8f9fa')
+        
+        # Improved styling for more compact layout
         style = ttk.Style()
         style.theme_use('clam')
         style.configure('Card.TFrame', background='#ffffff', relief='flat', borderwidth=1)
-        style.configure('Header.TLabel', font=('Segoe UI', 11, 'bold'), background='#ffffff', foreground='#2c3e50')
-        style.configure('Body.TLabel', font=('Segoe UI', 9), background='#ffffff', foreground='#34495e')
-        style.configure('Modern.TButton', font=('Segoe UI', 9), padding=(8, 4), width=8)  # Fixed width for consistency
-        style.configure('Primary.TButton', font=('Segoe UI', 9, 'bold'), padding=(12, 6), width=12)
-        style.configure('Small.TButton', font=('Segoe UI', 8), padding=(6, 3), width=10)  # For smaller buttons
+        style.configure('Header.TLabel', font=('Segoe UI', 10, 'bold'), background='#ffffff', foreground='#2c3e50')
+        style.configure('Body.TLabel', font=('Segoe UI', 8), background='#ffffff', foreground='#34495e')
+        style.configure('Modern.TButton', font=('Segoe UI', 8), padding=(6, 3), width=8)
+        style.configure('Primary.TButton', font=('Segoe UI', 9, 'bold'), padding=(10, 5), width=10)
+        style.configure('Small.TButton', font=('Segoe UI', 8), padding=(4, 2), width=8)
         style.map('Primary.TButton', background=[('active', '#3498db')])
-        main_frame = ttk.Frame(self.root, style='Card.TFrame', padding="12")
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        
+        main_frame = ttk.Frame(self.root, style='Card.TFrame', padding="8")
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         header_frame = ttk.Frame(main_frame, style='Card.TFrame')
         header_frame.pack(fill=tk.X, pady=(0, 12))
         title_label = ttk.Label(header_frame, text="Roblox Multi-Account Manager", 
@@ -47,27 +107,35 @@ class AccountManager:
         title_label.pack(side=tk.LEFT)
         subtitle_label = ttk.Label(header_frame, text="with LocalStorage Isolation", 
                                   font=('Segoe UI', 10), background='#ffffff', foreground='#6c757d')
-        subtitle_label.pack(side=tk.LEFT, padx=(8, 0))
+        subtitle_label.pack(side=tk.LEFT, padx=(8, 0))        
         accounts_section = ttk.Frame(main_frame, style='Card.TFrame')
         accounts_section.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+        
         accounts_header = ttk.Frame(accounts_section, style='Card.TFrame')
         accounts_header.pack(fill=tk.X, padx=8, pady=(8, 6))
         ttk.Label(accounts_header, text="Accounts", style='Header.TLabel').pack(side=tk.LEFT)
+        
         controls_frame = ttk.Frame(accounts_header, style='Card.TFrame')
         controls_frame.pack(side=tk.RIGHT)
         ttk.Button(controls_frame, text="Add", command=self.add_account, 
                   style='Small.TButton').pack(side=tk.RIGHT, padx=(2, 0))
+        ttk.Button(controls_frame, text="Edit", command=self.edit_selected_account,
+                  style='Small.TButton').pack(side=tk.RIGHT, padx=(2, 0))
         ttk.Button(controls_frame, text="Remove", command=self.remove_selected_accounts,
-                  style='Small.TButton').pack(side=tk.RIGHT, padx=(2, 0))        # Modern accounts list with better sizing
+                  style='Small.TButton').pack(side=tk.RIGHT, padx=(2, 0))
+        
+        # Modern accounts list with better sizing
         list_frame = ttk.Frame(accounts_section, style='Card.TFrame')
         list_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
-        self.accounts_tree = ttk.Treeview(list_frame, columns=('status',), show='tree headings', 
+        
+        self.accounts_tree = ttk.Treeview(list_frame, columns=('cookie',), show='tree headings',
                                          height=8, selectmode='extended')  # Increased height
         self.accounts_tree.heading('#0', text='Account Name')
-        self.accounts_tree.heading('status', text='Status')
-        self.accounts_tree.column('#0', width=250, minwidth=200)  # Increased width
-        self.accounts_tree.column('status', width=100, minwidth=80)
+        self.accounts_tree.heading('cookie', text='Cookie')
+        self.accounts_tree.column('#0', width=200, minwidth=150)  # Adjusted width
+        self.accounts_tree.column('cookie', width=150, minwidth=100)
         self.accounts_tree.bind('<<TreeviewSelect>>', self.toggle_account_selection)
+        self.accounts_tree.bind('<Double-1>', self.on_account_double_click)
         accounts_scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.accounts_tree.yview)
         self.accounts_tree.configure(yscrollcommand=accounts_scrollbar.set)
         self.accounts_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -119,11 +187,21 @@ class AccountManager:
         launch_inner = ttk.Frame(launch_section, style='Card.TFrame')
         launch_inner.pack(fill=tk.X, padx=8, pady=8)
         ttk.Label(launch_inner, text="Launch Controls", style='Header.TLabel').pack(anchor=tk.W, pady=(0, 6))
+        
         primary_row = ttk.Frame(launch_inner, style='Card.TFrame')
         primary_row.pack(fill=tk.X, pady=(0, 6))
-        self.launch_button = ttk.Button(primary_row, text="Launch Selected", 
-                                       command=self.launch_selected_accounts, style='Primary.TButton')
-        self.launch_button.pack(side=tk.LEFT, padx=(0, 8))
+        
+        # Only show improved launch button (renamed to "Launch")
+        if IMPROVED_LAUNCHER_AVAILABLE:
+            self.launch_button = ttk.Button(primary_row, text="Launch", 
+                                           command=self.launch_with_improved_method, style='Primary.TButton')
+            self.launch_button.pack(side=tk.LEFT, padx=(0, 8))
+        else:
+            # Fallback to old launcher if improved not available
+            self.launch_button = ttk.Button(primary_row, text="Launch", 
+                                           command=self.launch_selected_accounts, style='Primary.TButton')
+            self.launch_button.pack(side=tk.LEFT, padx=(0, 8))
+        
         delay_frame = ttk.Frame(primary_row, style='Card.TFrame')
         delay_frame.pack(side=tk.LEFT, padx=(0, 8))
         ttk.Label(delay_frame, text="Delay:", style='Body.TLabel').pack(side=tk.LEFT, padx=(0, 2))
@@ -134,17 +212,22 @@ class AccountManager:
         ttk.Label(delay_frame, text="sec", style='Body.TLabel').pack(side=tk.LEFT)
         secondary_row = ttk.Frame(launch_inner, style='Card.TFrame')
         secondary_row.pack(fill=tk.X)
+        
         ttk.Button(secondary_row, text="Stop All", command=self.stop_all_sessions,
                   style='Small.TButton').pack(side=tk.LEFT, padx=(0, 4))
         ttk.Button(secondary_row, text="Cleanup", command=self.cleanup_old_instances,
                   style='Small.TButton').pack(side=tk.LEFT, padx=(0, 4))
-        ttk.Button(secondary_row, text="Status", command=self.show_instance_status,
-                  style='Small.TButton').pack(side=tk.LEFT)
         status_section = ttk.Frame(main_frame, style='Card.TFrame')
         status_section.pack(fill=tk.BOTH, expand=False, pady=(0, 0))
+        
         status_header = ttk.Frame(status_section, style='Card.TFrame')
         status_header.pack(fill=tk.X, padx=8, pady=(8, 4))
-        ttk.Label(status_header, text="Status", style='Header.TLabel').pack(side=tk.LEFT)
+        ttk.Label(status_header, text="Output", style='Header.TLabel').pack(side=tk.LEFT)
+        
+        # Add fix notification if improved launcher is available
+        if IMPROVED_LAUNCHER_AVAILABLE:
+            ttk.Label(status_header, text="✨ Enhanced launcher ready - fixes isolation & success detection", 
+                     style='Body.TLabel', foreground='green').pack(side=tk.RIGHT)
         status_frame = ttk.Frame(status_section, style='Card.TFrame')
         status_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
         self.status_text = tk.Text(status_frame, height=6, wrap=tk.WORD, state=tk.DISABLED,
@@ -156,7 +239,7 @@ class AccountManager:
         status_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.accounts_tree.bind('<Double-1>', self.toggle_account_selection)
         self.server_entry.bind('<FocusIn>', self.clear_placeholder)
-        self.update_status("Ready to manage accounts")
+        self.update_status(f"Ready to manage accounts - Using {self.roblox_launcher.preferred_browser} browser (supports Chrome, Edge, Firefox, Brave, Opera)")
     def clear_placeholder(self, event):
         """Clear placeholder text when entry is focused."""
         if self.server_entry.get() == "Enter game/private server link...":
@@ -212,6 +295,59 @@ class AccountManager:
             self.save_data_debounced()
             self.refresh_accounts_list()
             self.update_status(f"Account '{account_name}' added successfully.")
+    def edit_selected_account(self):
+        """Edit the selected account name and/or cookie."""
+        selected_items = self.accounts_tree.selection()
+        if not selected_items:
+            messagebox.showinfo("No Selection", "Please select an account to edit.")
+            return
+        
+        if len(selected_items) > 1:
+            messagebox.showinfo("Multiple Selection", "Please select only one account to edit.")
+            return
+            
+        item = selected_items[0]
+        old_name = self.accounts_tree.item(item, 'text')
+        old_cookie = self.accounts_data.get(old_name, "")
+        
+        dialog = EditAccountDialog(self.root, old_name, old_cookie)
+        self.root.wait_window(dialog.dialog)
+        
+        if dialog.result:
+            new_name, new_cookie = dialog.result
+            if new_name != old_name:
+                # Remove old entry and add new one
+                if old_name in self.accounts_data:
+                    del self.accounts_data[old_name]
+                    
+            self.accounts_data[new_name] = new_cookie
+            self.save_data_debounced()
+            self.refresh_accounts_list()
+            self.update_status(f"Account '{old_name}' updated to '{new_name}'.")
+
+    def on_account_double_click(self, event):
+        """Handle double-click on account to edit name."""
+        item = self.accounts_tree.focus()
+        if not item:
+            return
+            
+        old_name = self.accounts_tree.item(item, 'text')
+        new_name = simpledialog.askstring("Rename Account", f"Enter new name for '{old_name}':", initialvalue=old_name)
+        
+        if new_name and new_name != old_name and new_name.strip():
+            new_name = new_name.strip()
+            if new_name in self.accounts_data:
+                messagebox.showerror("Error", f"Account '{new_name}' already exists.")
+                return
+                
+            # Update account data
+            cookie = self.accounts_data[old_name]
+            del self.accounts_data[old_name]
+            self.accounts_data[new_name] = cookie
+            self.save_data_debounced()
+            self.refresh_accounts_list()
+            self.update_status(f"Account renamed from '{old_name}' to '{new_name}'.")
+
     def remove_selected_accounts(self):
         """Remove selected accounts from the list."""
         selected_items = []
@@ -230,32 +366,36 @@ class AccountManager:
                     del self.accounts_data[name]
             self.save_data_debounced()
             self.refresh_accounts_list()
-            self.update_status(f"Removed {len(account_names)} account(s).")
+            self.update_status(f"Removed {len(account_names)} account(s).")    
     def select_all_accounts(self):
         """Select all accounts in the list."""
         all_items = self.accounts_tree.get_children()
         self.accounts_tree.selection_set(all_items)
-        for item in all_items:
-            self.accounts_tree.set(item, 'status', '✓')
+
     def deselect_all_accounts(self):
         """Deselect all accounts in the list."""
         self.accounts_tree.selection_remove(self.accounts_tree.get_children())
-        for item in self.accounts_tree.get_children():
-            self.accounts_tree.set(item, 'status', '')
+
     def toggle_account_selection(self, event):
         """Handle account selection changes."""
         selected_items = self.accounts_tree.selection()
         for item in self.accounts_tree.get_children():
             if item in selected_items:
-                self.accounts_tree.set(item, 'status', '✓')
+                # Mark as selected (you can use checkmarks or other indicators)
+                pass
             else:
-                self.accounts_tree.set(item, 'status', '')
+                pass
+
     def refresh_accounts_list(self):
-        """Refresh the accounts display list."""        # Clear existing items
+        """Refresh the accounts display list with masked cookies."""
+        # Clear existing items
         for item in self.accounts_tree.get_children():
-            self.accounts_tree.delete(item)
+            self.accounts_tree.delete(item)        
         for account_name in sorted(self.accounts_data.keys()):
-            item = self.accounts_tree.insert('', 'end', text=account_name, values=('',))
+            # Show masked cookie for security
+            masked_cookie = "****"
+            item = self.accounts_tree.insert('', 'end', text=account_name, values=(masked_cookie,))
+
     def launch_selected_accounts(self):
         """Launch Roblox for all selected accounts with instance isolation and correct method."""
         selected_items = self.accounts_tree.selection()
@@ -303,10 +443,10 @@ class AccountManager:
                     self.update_status(f"Using Direct Join method for {len(selected_accounts)} PS links...")
                     for i, (account_name, cookie) in enumerate(selected_accounts):
                         self.update_status(f"Direct joining {account_name} ({i+1}/{len(selected_accounts)})...")
-                        isolation_success, backup_path = self.roblox_launcher.symlink_manager.create_storage_isolation(account_name)
+                        isolation_success, backup_path = self.roblox_launcher.storage_manager.create_storage_isolation(account_name)
                         if isolation_success:
                             self.update_status(f"Temporary isolation created for {account_name}")                            # Use the RobloxLauncher's direct protocol method (no Play button click)
-                            launch_thread = self.roblox_launcher.roblox_launcher.launch_account_direct_protocol(
+                            launch_thread = self.roblox_launcher.launch_account_direct_protocol(
                                 account_name, cookie, server_link
                             )
                             if launch_thread:
@@ -317,7 +457,7 @@ class AccountManager:
                                     self.update_status(f"Direct protocol launch thread completed for {account_name}")# Wait longer for Roblox to initialize and fully load
                             self.update_status(f"Waiting for Roblox to initialize for {account_name}...")
                             time.sleep(20)  # Increased from 15 to 20 seconds for better stability
-                            self.roblox_launcher.symlink_manager.remove_storage_isolation(
+                            self.roblox_launcher.storage_manager.remove_storage_isolation(
                                 account_name, restore_backup=True, backup_path=backup_path
                             )
                             self.update_status(f"Temporary isolation removed for {account_name}")
@@ -342,10 +482,10 @@ class AccountManager:
                             account_name, cookie, server_link
                         )
                         if success:
-                            self.update_status(f"✓ {account_name} launched with Play button click")
+                            self.update_status(f"✓ {account_name} launched successfully with browser automation")
                             success_count += 1
                         else:
-                            self.update_status(f"✗ {account_name} browser launch failed")
+                            self.update_status(f"✗ {account_name} launch failed - check browser support")
                         if i < len(selected_accounts) - 1:
                             self.update_status(f"Waiting {delay} seconds before next launch...")
                             time.sleep(delay)
@@ -358,10 +498,42 @@ class AccountManager:
                     self.active_account_launches.discard(account_name)
                 self.root.after(0, lambda: self.launch_button.config(state='normal'))
         threading.Thread(target=launch_thread, daemon=True).start()
+
     def stop_all_sessions(self):
         """Stop all active Roblox instances and clean up LocalStorage isolations."""
-        stopped_count = self.roblox_launcher.stop_all_instances()
-        self.update_status(f"Stopped {stopped_count} instances and cleaned up LocalStorage isolations")
+        import subprocess
+        import psutil
+        
+        try:
+            # Kill all Roblox processes
+            roblox_processes = []
+            for proc in psutil.process_iter(['pid', 'name']):
+                try:
+                    if 'roblox' in proc.info['name'].lower():
+                        roblox_processes.append(proc)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            stopped_count = len(roblox_processes)
+            for proc in roblox_processes:
+                try:
+                    proc.terminate()
+                    self.update_status(f"Terminated Roblox process (PID: {proc.pid})")
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            # Also use the launcher's cleanup
+            launcher_stopped = self.roblox_launcher.stop_all_instances()
+            
+            self.update_status(f"🛑 Stopped {stopped_count} Roblox processes and cleaned up {launcher_stopped} launcher instances")
+            
+        except ImportError:
+            # Fallback if psutil not available
+            stopped_count = self.roblox_launcher.stop_all_instances()
+            self.update_status(f"Stopped {stopped_count} instances and cleaned up LocalStorage isolations")
+        except Exception as e:
+            self.update_status(f"Error stopping sessions: {e}")
+
     def cleanup_old_instances(self):
         """Clean up old instance directories and backups."""
         try:
@@ -528,7 +700,7 @@ Active Isolations:
         driver = None
         try:
             self.update_status(f"Setting up headless browser for {account_name}...")
-            options = Options()
+            options = FirefoxOptions()
             options.add_argument("--headless")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
@@ -644,9 +816,103 @@ class AccountDialog:
         add_btn = ttk.Button(button_frame, text="Add Account", command=self.add_account,
                            style='Primary.TButton')
         add_btn.pack(side=tk.RIGHT, padx=(0, 0))
-        self.name_entry.focus()
+        self.name_entry.focus()    
     def add_account(self):
         """Validate and add the account."""
+        name = self.name_entry.get().strip()
+        cookie = self.cookie_text.get("1.0", tk.END).strip()
+        if not name:
+            messagebox.showerror("Error", "Please enter an account name.")
+            return
+        if not cookie:
+            messagebox.showerror("Error", "Please enter the .ROBLOSECURITY cookie.")
+            return
+        if len(cookie) < 100:
+            if not messagebox.askyesno("Confirm", 
+                                     "Cookie seems too short. Are you sure this is a valid .ROBLOSECURITY cookie?"):
+                return
+        
+        # Clean the cookie (remove WARNING prefix if present)
+        clean_cookie = self._clean_cookie(cookie)
+        
+        import re
+        # Only show warning if cookie is not hexadecimal and doesn't start with WARNING prefix
+        if not re.match(r'^[A-Fa-f0-9]+$', clean_cookie) and not cookie.startswith('_|WARNING'):
+            if not messagebox.askyesno("Confirm", 
+                                     "Cookie doesn't appear to be in the expected format. Continue anyway?"):
+                return
+                
+        self.result = (name, cookie)
+        self.dialog.destroy()
+        
+    def _clean_cookie(self, cookie: str) -> str:
+        """Clean the .ROBLOSECURITY cookie by removing warning prefixes."""
+        warning_prefix = "_|WARNING"
+        if cookie.startswith(warning_prefix):
+            return cookie.split('|_')[-1]
+        return cookie
+
+    def cancel(self):
+        """Cancel dialog."""
+        self.dialog.destroy()
+class EditAccountDialog:
+    """Dialog for editing existing accounts."""
+    def __init__(self, parent, account_name, cookie):
+        self.result = None
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Edit Account")
+        self.dialog.geometry("500x400")  # Increased size for better layout
+        self.dialog.minsize(480, 380)    # Prevent shrinking too much
+        self.dialog.resizable(True, True)  # Allow resizing
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        self.dialog.geometry("+%d+%d" % (parent.winfo_rootx() + 50, parent.winfo_rooty() + 50))
+        self.setup_dialog(account_name, cookie)
+    def setup_dialog(self, account_name, cookie):
+        """Setup the dialog interface."""
+        self.dialog.configure(bg='#f8f9fa')
+        style = ttk.Style()
+        style.configure('Dialog.TButton', font=('Segoe UI', 9), padding=(10, 5), width=12)
+        style.configure('Primary.TButton', font=('Segoe UI', 9, 'bold'), padding=(12, 6), width=15)
+        style.map('Primary.TButton', background=[('active', '#3498db')])
+        main_frame = ttk.Frame(self.dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
+        title_label = ttk.Label(main_frame, text="Edit Account", 
+                               font=('Segoe UI', 14, 'bold'))
+        title_label.pack(pady=(0, 16))
+        name_section = ttk.Frame(main_frame)
+        name_section.pack(fill=tk.X, pady=(0, 12))
+        ttk.Label(name_section, text="Account Name", font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W, pady=(0, 4))
+        self.name_entry = ttk.Entry(name_section, font=('Segoe UI', 9))
+        self.name_entry.pack(fill=tk.X, pady=(0, 0))
+        self.name_entry.insert(0, account_name)
+        cookie_section = ttk.Frame(main_frame)
+        cookie_section.pack(fill=tk.BOTH, expand=True, pady=(0, 16))
+        ttk.Label(cookie_section, text="Cookie (.ROBLOSECURITY)", font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W, pady=(0, 4))
+        instruction_text = "F12 → Application → Cookies → roblox.com → Copy .ROBLOSECURITY value"
+        instruction_label = ttk.Label(cookie_section, text=instruction_text, 
+                                     font=('Segoe UI', 8), foreground='#6c757d', wraplength=400)
+        instruction_label.pack(anchor=tk.W, pady=(0, 6))
+        cookie_frame = ttk.Frame(cookie_section)
+        cookie_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 0))
+        self.cookie_text = tk.Text(cookie_frame, height=6, wrap=tk.WORD, font=('Segoe UI', 9),
+                                  bg='#ffffff', fg='#495057', relief='solid', borderwidth=1)
+        self.cookie_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        cookie_scrollbar = ttk.Scrollbar(cookie_frame, orient=tk.VERTICAL, command=self.cookie_text.yview)
+        self.cookie_text.configure(yscrollcommand=cookie_scrollbar.set)
+        cookie_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.cookie_text.insert(tk.END, cookie)
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(16, 0))
+        cancel_btn = ttk.Button(button_frame, text="Cancel", command=self.cancel,
+                              style='Dialog.TButton')
+        cancel_btn.pack(side=tk.RIGHT, padx=(8, 0))
+        save_btn = ttk.Button(button_frame, text="Save Changes", command=self.save_changes,
+                            style='Primary.TButton')
+        save_btn.pack(side=tk.RIGHT, padx=(0, 0))
+        self.name_entry.focus()
+    def save_changes(self):
+        """Validate and save the changes."""
         name = self.name_entry.get().strip()
         cookie = self.cookie_text.get("1.0", tk.END).strip()
         if not name:

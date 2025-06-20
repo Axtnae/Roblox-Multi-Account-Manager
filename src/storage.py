@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Optional, Tuple
 import platform
-class SymlinkManager:
+class StorageManager:
     """
     Manages symbolic link creation and cleanup for Roblox LocalStorage isolation.
     Provides safe symlink operations with proper error handling and rollback.
