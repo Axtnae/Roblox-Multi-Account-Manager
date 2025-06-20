@@ -1,0 +1,29 @@
+# Requirements for Enhanced Roblox Multi-Account Manager with Symlink Isolation
+# Phase 3: Full LocalStorage isolation using symbolic links
+
+# Core Dependencies
+selenium==4.17.2                # Browser automation for Roblox authentication
+cryptography>=41.0.0,<46.0.0   # Fernet encryption for secure account storage
+webdriver-manager==4.0.1        # Automatic Firefox driver management
+psutil>=5.9.0                   # Process management for instance tracking
+
+# Built-in Python modules (no installation required)
+# - tkinter (GUI framework)
+# - threading (multi-threading support) 
+# - json (data serialization)
+# - os, pathlib (file system operations for symlinks)
+# - time (timing and delays)
+# - subprocess (process spawning and Fishtrap integration)
+# - hashlib (cryptographic hashing)
+# - base64 (encoding/decoding)
+# - shutil (file operations and backups)
+# - tempfile (temporary directory management)
+# - platform (OS detection for symlink creation)
+
+# Installation commands:
+# pip install -r requirements.txt
+#
+# For virtual environment:
+# python -m venv venv
+# .\venv\Scripts\activate  (Windows)
+# pip install -r requirements.txt
